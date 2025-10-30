@@ -9,7 +9,7 @@ if __name__ =="__main__":
     # # 1. 마스크 배분 시나리오 실행 및 결과 저장
     alloc.run_allocation_scenarios()
     alloc_graph.draw_graphs()
-    #alloc_graph.draw_fair_graphs()
+    alloc_graph.draw_fair_graphs()
 
     # # 2. 배분 결과를 SEIRD 모델 입력 형식으로 변환
     utils.convert_df()
