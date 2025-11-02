@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
-from conditions import populations, aged_ratio # populations 변수 import
+from conditions import populations # populations 변수 import
 import os
 
 def load_and_merge_data(aged_priority_file, non_priority_file):
@@ -118,7 +118,7 @@ def plot_mortality_reduction_rate_comparison(df, graphs_dir):
         plt.savefig(f'{filename}.png', dpi=300, bbox_inches='tight')
         plt.close()
 
-def plot_fair_policy_heatmap(df, graphs_dir):
+def plot_fair_policy_heatmap(df, graphs_dir, aged_ratio):
     """
     Fair 정책에 대한 사망률 감소율 히트맵 생성 (supply_rate vs epsilon)
     """
@@ -138,7 +138,7 @@ def plot_fair_policy_heatmap(df, graphs_dir):
     fair_df.dropna(subset=['epsilon', 'supply_rate'], inplace=True)
 
     # 통합 사망률 계산을 위한 인구 데이터
-    pop_r1, pop_r2 = populations[0], populations[1]
+    pop_r1, pop_r2 = populations[0], populations[1] # This might need adjustment if aged_ratio changes populations
     aged_ratio_r1, aged_ratio_r2 = aged_ratio[0], aged_ratio[1]
     pop_r1_aged, pop_r2_aged = pop_r1 * aged_ratio_r1, pop_r2 * aged_ratio_r2
     pop_r1_nonaged, pop_r2_nonaged = pop_r1 * (1 - aged_ratio_r1), pop_r2 * (1 - aged_ratio_r2)
@@ -203,7 +203,7 @@ def plot_fair_policy_heatmap(df, graphs_dir):
         plt.savefig(f'{filename}.png', dpi=300, bbox_inches='tight')
         plt.close()
 
-def plot_fair_policy_surface(df, graphs_dir):
+def plot_fair_policy_surface(df, graphs_dir, aged_ratio):
     """
     Fair 정책에 대한 사망률 감소율 3D Surface 그래프 생성 (supply_rate vs epsilon)
     """
@@ -224,7 +224,7 @@ def plot_fair_policy_surface(df, graphs_dir):
 
     # 통합 사망률 계산을 위한 인구 데이터
     # 1. 전체 인구는 conditions.py의 population을 참조
-    pop_r1, pop_r2 = populations[0], populations[1]
+    pop_r1, pop_r2 = populations[0], populations[1] # This might need adjustment
     aged_ratio_r1, aged_ratio_r2 = aged_ratio[0], aged_ratio[1]
     pop_r1_aged, pop_r2_aged = pop_r1 * aged_ratio_r1, pop_r2 * aged_ratio_r2
     pop_r1_nonaged, pop_r2_nonaged = pop_r1 * (1 - aged_ratio_r1), pop_r2 * (1 - aged_ratio_r2)
@@ -288,7 +288,7 @@ def plot_fair_policy_surface(df, graphs_dir):
         plt.savefig(f'{filename}.png', dpi=300, bbox_inches='tight')
         plt.close()
 
-def plot_fair_policy_by_epsilon(df, graphs_dir):
+def plot_fair_policy_by_epsilon(df, graphs_dir, aged_ratio):
     """
     Fair 정책에 대해 고정된 supply_rate에서 epsilon 변화에 따른 사망률 감소율 라인 그래프 생성
     """
@@ -324,7 +324,7 @@ def plot_fair_policy_by_epsilon(df, graphs_dir):
 
     # 통합 사망률 계산을 위한 인구 데이터
     # 1. 전체 인구는 conditions.py의 population을 참조
-    pop_r1, pop_r2 = populations[0], populations[1]
+    pop_r1, pop_r2 = populations[0], populations[1] # This might need adjustment
     aged_ratio_r1, aged_ratio_r2 = aged_ratio[0], aged_ratio[1]
     pop_r1_aged, pop_r2_aged = pop_r1 * aged_ratio_r1, pop_r2 * aged_ratio_r2
     pop_r1_nonaged, pop_r2_nonaged = pop_r1 * (1 - aged_ratio_r1), pop_r2 * (1 - aged_ratio_r2)
@@ -674,25 +674,41 @@ def plot_policy_comparison_by_supply_rate(df, graphs_dir, supply_rates=None):
         plt.close()
 
 # 메인 실행 함수
-def main_comparison_analysis():
+def main_comparison_analysis(draw=True, aged_priority_file=None, non_priority_file=None, aged_ratio=None):
+    if draw == False:
+        return 
     """
     전체 비교 분석 실행
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(script_dir, 'output')
-    graphs_dir = os.path.join(script_dir, 'graphs')
     
-    aged_priority_file = os.path.join(output_dir, 'policy_results_with_priority.csv')
-    non_priority_file = os.path.join(output_dir, 'policy_results_without_priority.csv')
+    if aged_ratio:
+        ar_str = f"aged_ratio_{str(aged_ratio[0]).replace('.', '')}_{str(aged_ratio[1]).replace('.', '')}"
+        graphs_dir = os.path.join(script_dir, 'graphs', ar_str)
+    else:
+        graphs_dir = os.path.join(script_dir, 'graphs', 'default')
+
+    os.makedirs(graphs_dir, exist_ok=True)
+
+    # 파일 경로가 지정되지 않은 경우 기본값 사용
+    if aged_priority_file is None:
+        aged_priority_file = os.path.join(script_dir, 'output', 'policy_results_with_priority.csv')
+    if non_priority_file is None:
+        non_priority_file = os.path.join(script_dir, 'output', 'policy_results_without_priority.csv')
+    
+    if not os.path.exists(aged_priority_file) or not os.path.exists(non_priority_file):
+        print(f"Warning: Result files not found for aged_ratio {aged_ratio}. Skipping graph generation.")
+        print(f"Checked paths: {aged_priority_file}, {non_priority_file}")
+        return
     # 데이터 로드 및 병합
     df_combined = load_and_merge_data(aged_priority_file, non_priority_file)
     
     # 그래프 생성
     plot_mortality_comparison_by_supply_rate(df_combined, graphs_dir)
     plot_mortality_reduction_rate_comparison(df_combined, graphs_dir)
-    plot_fair_policy_heatmap(df_combined, graphs_dir)
-    plot_fair_policy_surface(df_combined, graphs_dir)
-    plot_fair_policy_by_epsilon(df_combined, graphs_dir)
+    plot_fair_policy_heatmap(df_combined, graphs_dir, aged_ratio)
+    plot_fair_policy_surface(df_combined, graphs_dir, aged_ratio)
+    plot_fair_policy_by_epsilon(df_combined, graphs_dir, aged_ratio)
     plot_mask_usage_comparison(df_combined, graphs_dir)
     reduction_df = plot_mortality_reduction_analysis(df_combined, graphs_dir)
     plot_policy_comparison_by_supply_rate(df_combined, graphs_dir)

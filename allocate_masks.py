@@ -208,10 +208,10 @@ def process_allocations_fair(allocations, epsilon, sub_population, slope, max_ut
             "Epsilon": epsilon # Epsilon 값 별도 저장
         })
 
-def get_experiment_condtitions():
+def get_experiment_condtitions(aged_ratio_override=None):
     """conditions file에서 실험 조건을 가져옴"""
     n_all = np.array(conditions.populations)
-    aged_ratio = np.array(conditions.aged_ratio)
+    aged_ratio = np.array(aged_ratio_override if aged_ratio_override is not None else conditions.default_aged_ratio)
     n_elders = n_all * aged_ratio
     n_adults = n_all * (1 - aged_ratio)
     total_population = sum(n_all)  # Total population across all regions
@@ -309,35 +309,32 @@ def generate_allocations(n_all, supply_rate):
 
     return equal_allocation, proportion_allocation
 
-def run_allocation_scenarios(df_results=None):
-    """모든 배분 시나리오(Equal, Proportion, Utility, Fair)를 실행하고 결과를 하나의 파일에 저장합니다."""
-    exp_conditions = get_experiment_condtitions()
-    results = []
-
-    # 1. Equal, Proportion, Utility 시나리오 실행
+def run_standard_scenarios(exp_conditions, data_list):
+    """Equal, Proportion, Utility 시나리오를 실행합니다."""
+    standard_results = []
     print("Running Equal, Proportion, and Utility scenarios...")
-    for supply_rate in exp_conditions["supply_rates"]:
+    for i, supply_rate in enumerate(exp_conditions["supply_rates"]):
         data = define_one_case(exp_conditions["n_elders"], exp_conditions["n_adults"], exp_conditions["slope"], supply_rate)
-
+        
         sub_population = data["sub_population"]
         slope = data["slope"]
         max_utility = data["max_utility"]
         region_population = data["region_population"]
         supply_all = data["supply_all"]
-
+        
         # Equal & Proportion Allocation
         equal_allocation, proportion_allocation = generate_allocations(exp_conditions["n_all"], supply_rate)
-        process_allocations(equal_allocation, "Equal", sub_population, slope, max_utility, supply_rate, data, results)
-        process_allocations(proportion_allocation, "Proportion", sub_population, slope, max_utility, supply_rate, data, results)
-
+        process_allocations(equal_allocation, "Equal", sub_population, slope, max_utility, supply_rate, data, standard_results)
+        process_allocations(proportion_allocation, "Proportion", sub_population, slope, max_utility, supply_rate, data, standard_results)
+        
         # Utility Maximized Allocation
         num_breaks = np.zeros(len(exp_conditions["n_all"]))
         for i in range(len(exp_conditions["n_all"])):
             num_breaks[i] = 2
-        
+            
         epsilon_for_utility = 1.0 # Epsilon=1은 효용 극대화와 동일
         x, _, _, _, _ = solve_problem_gurobi(epsilon_for_utility, supply_all, region_population, num_breaks, sub_population, slope, max_utility)
-        
+            
         allocation = np.zeros(len(exp_conditions["n_all"]))
         for i in range(len(exp_conditions["n_all"])):
             temp_x = 0
@@ -345,26 +342,29 @@ def run_allocation_scenarios(df_results=None):
                 temp_x += x.get((i, t), 0)
             allocation[i] = temp_x
         utility_allocation = [allocation]
-        process_allocations(utility_allocation, "Utility", sub_population, slope, max_utility, supply_rate, data, results)
+        process_allocations(utility_allocation, "Utility", sub_population, slope, max_utility, supply_rate, data, standard_results)
+    return standard_results
 
-    # 2. Fair 시나리오 실행
+def run_fair_scenarios(exp_conditions, data_list):
+    """Fair 시나리오를 실행합니다."""
+    fair_results = []
     print("Running Fair scenarios...")
     for epsilon in exp_conditions["epsilon_values"]:
-        for supply_rate in exp_conditions["supply_rates"]:
+        for i, supply_rate in enumerate(exp_conditions["supply_rates"]):
             data = define_one_case(exp_conditions["n_elders"], exp_conditions["n_adults"], exp_conditions["slope"], supply_rate)
-
+            
             sub_population = data["sub_population"]
             slope = data["slope"]
             max_utility = data["max_utility"]
             region_population = data["region_population"]
             supply_all = data["supply_all"]
-
+            
             num_breaks = np.zeros(len(exp_conditions["n_all"]))
             for i in range(len(exp_conditions["n_all"])):
                 num_breaks[i] = 2
-
+                
             x, _, _, _, _ = solve_problem_gurobi(epsilon, supply_all, region_population, num_breaks, sub_population, slope, max_utility)
-            
+                
             allocation = np.zeros(len(exp_conditions["n_all"]))
             for i in range(len(exp_conditions["n_all"])):
                 temp_x = 0
@@ -372,15 +372,43 @@ def run_allocation_scenarios(df_results=None):
                     temp_x += x.get((i, t), 0)
                 allocation[i] = temp_x
             fair_allocation = [allocation]
-            process_allocations_fair(fair_allocation, epsilon, sub_population, slope, max_utility, supply_rate, data, results)
+            process_allocations_fair(fair_allocation, epsilon, sub_population, slope, max_utility, supply_rate, data, fair_results)
+    return fair_results
 
-    # 3. 모든 결과를 하나의 DataFrame으로 변환하고 저장
+def run_scenarios(mode="All", aged_ratio_override=None):
+    exp_conditions = get_experiment_condtitions(aged_ratio_override)
+    if mode == "All":
+        """모든 배분 시나리오(Equal, Proportion, Utility, Fair)를 실행하고 결과를 하나의 파일에 저장합니다."""
+        # 1. 표준(Equal, Proportion, Utility) 시나리오 실행
+        standard_results = run_standard_scenarios(exp_conditions, []) # data_list is not used here, pass empty
+        
+        # 2. Fair 시나리오 실행
+        fair_results = run_fair_scenarios(exp_conditions, []) # data_list is not used here, pass empty
+        
+        results = standard_results + fair_results
+        save_results_to_csv(results, aged_ratio_override)
+    elif mode == "Fair":
+        """Fair 시나리오만 실행하고 결과를 하나의 파일에 저장합니다."""        
+        # Fair 시나리오 실행
+        fair_results = run_fair_scenarios(exp_conditions, []) # data_list is not used here, pass empty
+        save_results_to_csv(fair_results, aged_ratio_override)
+    
+def save_results_to_csv(results, aged_ratio_override=None):
+    """배분 시나리오 결과를 하나의 CSV 파일로 저장합니다."""
     df_results = pd.DataFrame(results)
     df_results.sort_values(by=["Scenario", "supply_rate", "Epsilon"], inplace=True)
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(script_dir, 'output')
     os.makedirs(output_dir, exist_ok=True)
-    output_file_path = os.path.join(output_dir, 'df_results_output.csv')
+
+    if aged_ratio_override:
+        # [0.1, 0.4] -> '01_04'
+        ar_str = f"{str(aged_ratio_override[0]).replace('.', '')}_{str(aged_ratio_override[1]).replace('.', '')}"
+        filename = f'df_results_output_ar_{ar_str}.csv'
+    else:
+        filename = 'df_results_output.csv'
+
+    output_file_path = os.path.join(output_dir, filename)
     df_results.to_csv(output_file_path, index=False)
     print(f"All allocation results saved to {output_file_path}")

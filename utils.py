@@ -3,29 +3,24 @@ import pandas as pd
 import conditions as cnd
 import ast
 
-def convert_df():
+def convert_df(input_csv_path, output_csv_path, aged_ratio):
     """
-    'df_results_output.csv' 파일을 읽어 'policy.csv' 형식으로 변환하고 저장합니다.
+    지정된 결과 파일을 읽어 'policy.csv' 형식으로 변환하고 저장합니다.
+    
+    Args:
+        input_csv_path (str): 읽어올 allocation 결과 CSV 파일 경로.
+        output_csv_path (str): 저장할 policy CSV 파일 경로.
+        aged_ratio (list): 현재 시나리오의 고령층 비율.
     """
-    print("Converting allocation results to policy.txt for SEIRD model...")
-    
-    # 현재 스크립트의 디렉토리를 기준으로 경로 설정
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(script_dir, 'output')
-    input_dir = os.path.join(script_dir, 'input')
-    
-    # 입력/출력 파일 경로 생성
-    csv_input_path = os.path.join(output_dir, 'df_results_output.csv')
-    csv_output_path = os.path.join(input_dir, 'policy.csv')
-    
-    # output 디렉토리가 없으면 생성
-    os.makedirs(input_dir, exist_ok=True)
+    print(f"Converting {input_csv_path} to {output_csv_path} for SEIRD model...")
+
+    os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
 
     # CSV 파일 읽기
-    df = pd.read_csv(csv_input_path)
+    df = pd.read_csv(input_csv_path)
 
     policy_lines = []
-    aged_ratio_1, aged_ratio_2 = cnd.aged_ratio
+    aged_ratio_1, aged_ratio_2 = aged_ratio
 
     for _, row in df.iterrows():
         # 1. 정책 이름 생성
@@ -54,6 +49,6 @@ def convert_df():
 
     # policy.csv 파일로 저장
     policy_df = pd.DataFrame(policy_lines)
-    policy_df.to_csv(csv_output_path, index=False)
+    policy_df.to_csv(output_csv_path, index=False)
         
-    print(f"Successfully created {csv_output_path}")
+    print(f"Successfully created {output_csv_path}")

@@ -210,13 +210,15 @@ def calculate_mortality(policy, policy_name, mask_duration):
     
     return mortality_rates, out, mask_usages_aged, mask_usages_nonaged
 
-def run_dynamic_experiment():
+def run_dynamic_experiment(input_policy_file='input/policy.csv', output_results_file='output/policy_results_with_priority.csv'):
     """
     policy.csv 파일을 읽어 모든 정책에 대해 SEIRD 모델을 실행하고 결과를 CSV로 저장합니다.
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    input_dir = os.path.join(script_dir, 'input')
-    input_csv_path = os.path.join(input_dir, 'policy.csv')
+    input_csv_path = os.path.join(script_dir, input_policy_file)
+    if not os.path.exists(input_csv_path):
+        print(f"Policy file not found: {input_csv_path}")
+        return
     policies = read_policies(input_csv_path)
     results = {}
 
@@ -240,7 +242,9 @@ def run_dynamic_experiment():
         }
     
     output_dir = os.path.join(script_dir, 'output')
-    output_csv_path = os.path.join(output_dir, 'policy_results_with_priority.csv')
+    # output_results_file이 이미 'output/...' 형태일 수 있으므로, 절대 경로로 만듭니다.
+    output_csv_path = os.path.join(script_dir, output_results_file)
+    os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
     
     with open(output_csv_path, 'w') as f:
         # Write header

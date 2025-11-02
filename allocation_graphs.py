@@ -2,7 +2,9 @@ import matplotlib.pyplot as plt
 import os
 import pandas as pd
      
-def draw_graphs():
+def draw_graphs(draw=True):
+    if draw is False:
+        return
     """확인용 그래프 그리기"""
     # 현재 스크립트의 디렉토리를 기준으로 경로 설정
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -46,7 +48,9 @@ def draw_graphs():
     
     print(f"Graphs saved to {graphs_dir}")
 
-def draw_fair_graphs():
+def draw_fair_graphs(draw=True):
+    if draw is False:
+        return
     # 현재 스크립트의 디렉토리를 기준으로 경로 설정
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(script_dir, 'output')
