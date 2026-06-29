@@ -1,0 +1,7 @@
+For 1500*1000 --> use randomseed 20230911 
+For 1500*2000 --> use randomseed 20230911 
+
+n_items = 1000
+n_users = 50
+random_seed = 20230815
+
